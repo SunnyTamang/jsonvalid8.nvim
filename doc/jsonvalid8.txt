@@ -1,0 +1,57 @@
+*jsonvalid8.nvim*   JSON Schema Validator Plugin for Neovim
+
+jsonvalid8.nvim - Validate JSON files with intuitive schema syntax
+
+===============================================================================
+CONTENTS
+
+    1. Introduction........................................|jsonvalid8-intro|
+    2. Commands............................................|jsonvalid8-commands|
+    3. Configuration.......................................|jsonvalid8-config|
+    4. Schema Syntax.......................................|jsonvalid8-syntax|
+    5. Usage...............................................|jsonvalid8-usage|
+    6. Examples............................................|jsonvalid8-examples|
+    7. Templates...........................................|jsonvalid8-templates|
+    8. Advanced Features...................................|jsonvalid8-advanced|
+
+===============================================================================
+
+1. *jsonvalid8-intro* ~
+    jsonvalid8.nvim is a modern JSON Schema validator for Neovim. Define schemas
+    with a simple, readable syntax and validate JSON files with instant feedback.
+
+2. *jsonvalid8-commands* ~
+    :JsonValid8Open      Open schema validator
+    :JsonValid8Validate  Validate current JSON file
+    :JsonValid8Clear     Clear validation results
+    :JsonValid8Templates Show schema templates
+    :JsonValid8Export    Export schema as JSON Schema file
+
+3. *jsonvalid8-config* ~
+    >
+    require('jsonvalid8').setup({
+      -- See README.md for all options
+    })
+    <
+
+4. *jsonvalid8-syntax* ~
+    See |jsonvalid8-syntax| for full schema syntax reference.
+
+5. *jsonvalid8-usage* ~
+    Open a JSON file, then use <leader>jv or :JsonValid8Open.
+
+6. *jsonvalid8-examples* ~
+    name: string
+    age: integer(minimum=0, maximum=120)
+    email: string(format=email)
+    tags: array[string]
+    profile: object{
+      bio?: string
+      active: boolean = true
+    }
+
+7. *jsonvalid8-templates* ~
+    Use :JsonValid8Templates to see built-in schema templates.
+
+8. *jsonvalid8-advanced* ~
+    Schema persistence, auto-completion, multi-file validation, and more.
