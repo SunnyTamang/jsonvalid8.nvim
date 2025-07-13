@@ -1,10 +1,9 @@
 {
   "name": "Sunny Tamang",
   "email": "sunny@example.com",
-  "age": 28,
+  "age": 121,
   "is_active": true,
   "roles": ["admin", "editor"],
-  "tags": ["y","n"],
   "profile": {
     "bio": "Lead Data Scientist with a focus on NLP and Generative AI.",
     "location": "India",

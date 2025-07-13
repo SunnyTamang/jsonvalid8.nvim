@@ -1,0 +1,18 @@
+{
+  "id": 101,
+  "name": "Wireless Mouse",
+  "category": "Electronics",
+  "price": 29.99,
+  "in_stock": true,
+  "tags": ["wireless", "mouse", "usb", "peripheral"],
+  "specs": {
+    "color": "black",
+    "weight_grams": 85,
+    "battery_life_hours": 120
+  },
+  "ratings": [
+    { "user": "alice", "score": 5, "comment": "Great mouse!" },
+    { "user": "bob", "score": 4, "comment": "Works well, but a bit small." }
+  ],
+  "release_date": "2023-11-01"
+} 

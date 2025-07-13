@@ -1,7 +1,9 @@
+local vim = vim
 local M = {}
 
 local config = require('jsonvalid8.config')
 local utils = require('jsonvalid8.utils')
+--local parser = require('jsonvalid8.parser') -- [universal schema: commented out]
 
 local current_schema_buf = nil
 local current_json_buf = nil
@@ -74,19 +76,19 @@ function M.open()
   vim.api.nvim_buf_set_option(schema_buf, 'swapfile', false)
   vim.api.nvim_buf_set_option(schema_buf, 'filetype', 'jsonvalid8')
   local schema_lines = {
-    "# jsonvalid8.nvim - Schema Definition",
+    "# jsonvalid8.nvim - JSON Schema Editor",
+    "# Paste or edit your JSON Schema below.",
     "# Press ? for help, Ctrl+s to validate, Ctrl+p for preview",
-    "",
-    "# Example schema:",
-    "name: string",
-    "age: integer(minimum=0, maximum=120)",
-    "email: string(format=email)",
-    "tags: array[string]",
-    "profile: object{",
-    "  bio?: string",
-    "  active: boolean = true",
+    "#",
+    "# For a full example schema, see the README file in the repo (@https://github.com/SunnyTamang/jsonvalid8.nvim).",
+    "#",
+    "{",
+    "  \"type\": \"object\",",
+    "  \"properties\": {",
+    "    ",
+    "  },",
+    "  \"required\": []",
     "}",
-    "",
   }
   vim.api.nvim_buf_set_lines(schema_buf, 0, -1, false, schema_lines)
   vim.api.nvim_buf_set_name(schema_buf, 'jsonvalid8://schema_' .. os.time())
@@ -194,7 +196,7 @@ end
 function M.setup_keybindings(parent_win, left_win, schema_buf, json_buf, handles)
   local keymaps = {
     ['<C-s>'] = function() require('jsonvalid8.validator').validate(schema_buf, json_buf) end,
-    ['<C-p>'] = function() M.show_preview() end,
+    ['<C-p>'] = function() M.show_preview(schema_buf) end,
     ['?'] = function() M.show_help() end,
     ['q'] = function() M.close_window(handles) end,
     ['<Esc>'] = function() M.close_window(handles) end,
@@ -234,35 +236,41 @@ end
 --- Shows help popup with syntax examples.
 function M.show_help()
   local help_text = {
-    "jsonvalid8.nvim - Schema Syntax Help",
+    "jsonvalid8.nvim - JSON Schema Help",
     "",
-    "Basic Types:",
-    "  name: string",
-    "  age: integer",
-    "  price: number",
-    "  is_active: boolean",
+    "- Paste or edit your JSON Schema in the left split.",
+    "- For a full example schema, see the README file in the repo (@https://github.com/SunnyTamang/jsonvalid8.nvim)",
+    "- Start with this minimal skeleton:",
     "",
-    "Constraints:",
-    "  age: integer(minimum=0, maximum=120)",
-    "  email: string(format=email)",
-    "  password: string(minLength=8, maxLength=64)",
-    "",
-    "Arrays:",
-    "  tags: array[string]",
-    "  numbers: array[integer]",
-    "",
-    "Objects:",
-    "  profile: object{",
-    "    bio: string",
-    "    active: boolean",
+    "  {",
+    "    \"type\": \"object\",",
+    "    \"properties\": {",
+    "      ",
+    "    },",
+    "    \"required\": []",
     "  }",
     "",
-    "Optional Fields:",
-    "  description?: string",
-    "  tags: array[string] = []",
-    "  is_active: boolean = true",
+    "# JSON Schema Tips:",
+    "- To define an object property:",
+    "    \"profile\": { \"type\": \"object\", \"properties\": { ... }, \"required\": [ ... ] }",
+    "- To define an array of strings:",
+    "    \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+    "- To require a property:",
+    "    Add its name to the \"required\" array.",
+    "- To specify a type:",
+    "    \"name\": { \"type\": \"string\" }, \"age\": { \"type\": \"integer\" }",
+    "- To add constraints:",
+    "    \"age\": { \"type\": \"integer\", \"minimum\": 0, \"maximum\": 120 }",
+    "- To allow only certain values:",
+    "    \"status\": { \"type\": \"string\", \"enum\": [\"active\", \"inactive\"] }",
     "",
-    "Press q to close this help",
+    "KEYBINDINGS:",
+    "  <C-s>   Validate JSON file",
+    "  <C-p>   Preview JSON Schema",
+    "  ?       Show this help",
+    "  q, <Esc> Close the floating window",
+    "",
+    "See README for more details and examples.",
   }
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, help_text)
@@ -294,9 +302,124 @@ function M.show_help()
   vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, { buffer = buf, noremap = true, silent = true })
 end
 
+--[[
+-- Universal schema parsing functions (no longer used):
+local function best_effort_parse(clean_schema)
+  local ok, json_schema = pcall(require('jsonvalid8.parser').parse, clean_schema)
+  if ok and type(json_schema) == 'table' then
+    return json_schema
+  end
+  -- Try to parse as much as possible: ignore lines with errors
+  local partial = {}
+  for _, line in ipairs(clean_schema) do
+    local single_ok, single_schema = pcall(require('jsonvalid8.parser').parse, {line})
+    if single_ok and type(single_schema) == 'table' then
+      for k, v in pairs(single_schema) do
+        partial[k] = v
+      end
+    end
+  end
+  return next(partial) and partial or nil
+end
+
+local function parse_literal_schema(lines, start_idx)
+  local schema = {
+    properties = {},
+    required = {},
+    type = "object"
+  }
+  local i = start_idx or 1
+  while i <= #lines do
+    local line = lines[i]
+    local field, type_def = line:match("^([%w_]+)%s*:%s*(.+)$")
+    if field and type_def then
+      if type_def:match("^object%s*{%") then
+        -- Nested object, find matching '}'
+        local nested_lines = {}
+        i = i + 1
+        local depth = 1
+        while i <= #lines and depth > 0 do
+          local l = lines[i]
+          if l:match("{%s*$") then depth = depth + 1 end
+          if l:match("^%s*}%s*$") then depth = depth - 1 end
+          if depth > 0 then table.insert(nested_lines, l) end
+          i = i + 1
+        end
+        schema.properties[field] = parse_literal_schema(nested_lines, 1)
+        table.insert(schema.required, field)
+        i = i - 1 -- adjust for outer loop increment
+      else
+        schema.properties[field] = { type = type_def }
+        table.insert(schema.required, field)
+      end
+    end
+    i = i + 1
+  end
+  return schema
+end
+
+local function literal_schema_preview(clean_schema)
+  return parse_literal_schema(clean_schema, 1)
+end
+--]]
+
 --- Shows schema preview in split view.
-function M.show_preview()
-  utils.notify("Schema preview not yet implemented.", vim.log.levels.WARN)
+function M.show_preview(schema_buf)
+  if not schema_buf or not vim.api.nvim_buf_is_valid(schema_buf) then
+    utils.notify("No schema buffer found for preview.", vim.log.levels.ERROR)
+    return
+  end
+  -- Get schema lines
+  local schema_lines = vim.api.nvim_buf_get_lines(schema_buf, 0, -1, false)
+  local clean_schema = {}
+  for _, line in ipairs(schema_lines) do
+    local trimmed = line:match("^%s*(.-)%s*$")
+    if trimmed ~= "" and not trimmed:match("^#") then
+      table.insert(clean_schema, trimmed)
+    end
+  end
+  if #clean_schema == 0 then
+    utils.notify("No schema definition found.", vim.log.levels.ERROR)
+    return
+  end
+  -- Parse schema as JSON
+  local schema_content = table.concat(clean_schema, "\n")
+  local ok, json_schema = pcall(vim.fn.json_decode, schema_content)
+  if not ok or not json_schema then
+    utils.notify("Invalid JSON Schema in left split: " .. (json_schema or "(decode error)"), vim.log.levels.ERROR)
+    return
+  end
+  local pretty = utils.pretty_json(json_schema, 2)
+  local pretty_lines = {}
+  for line in pretty:gmatch("[^\n]+") do
+    table.insert(pretty_lines, line)
+  end
+  -- Create popup buffer
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, pretty_lines)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'json')
+  -- Calculate popup size
+  local width = math.min(90, math.max(40, math.floor(vim.o.columns * 0.7)))
+  local height = math.min(#pretty_lines + 2, math.floor(vim.o.lines * 0.7))
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  -- Open floating window
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = 'JSON Schema Preview',
+    title_pos = 'center',
+  })
+  vim.api.nvim_win_set_option(win, 'wrap', true)
+  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, true) end, { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, { buffer = buf, noremap = true, silent = true })
 end
 
 return M
