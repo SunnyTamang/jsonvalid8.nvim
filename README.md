@@ -2,8 +2,6 @@
 
 A modern, user-friendly JSON Schema validator plugin for Neovim. Validate JSON files on-the-fly, get actionable feedback, and enjoy a beautiful floating window UI.
 
-**Repo:** [@https://github.com/SunnyTamang/jsonvalid8.nvim](https://github.com/SunnyTamang/jsonvalid8.nvim)
-
 ---
 
 ## Features
@@ -27,14 +25,31 @@ A modern, user-friendly JSON Schema validator plugin for Neovim. Validate JSON f
 
 ## Installation
 
-**With [lazy.nvim](https://github.com/folke/lazy.nvim):**
+**Lazy:**
 ```lua
 {
   'SunnyTamang/jsonvalid8.nvim',
-  config = function()
-    require('jsonvalid8').setup()
-  end
+  opts={},
 }
+```
+
+**Plug:**
+```lua
+call plug#begin()
+    Plug 'SunnyTamang/jsonvalid8.nvim'
+call plug#end()
+
+lua require("jsonvalid8").setup()
+```
+
+```lua 
+use {
+    'SunnyTamang/jsonvalid8.nvim',
+    config = function()
+        require('jsonvalid8').setup()
+    end
+}
+
 ```
 
 ---
